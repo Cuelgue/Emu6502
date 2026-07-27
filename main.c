@@ -2,6 +2,7 @@
 #include <stdint.h>
 
 typedef enum {
+    M_NULO = 0, //agregado solo para la funcion Overflow 
     M_CARRY = 1,
     M_ZERO,
     M_INTER = 4,
@@ -62,23 +63,56 @@ void brk(cpu_t *cpu, uint8_t *ram)
    fundamentales y en otras funciones llamarlas
    según el modo de direccionamiento.*/
 
+/* Una manera muy torpe, pero deberia resolver.
+     al final resolver es lo primero, mejorar es lo siguiente.*/
+mask_t overflow(uint8_t ac,uint8_t value, uint8_t carry)
+{
+    
+    mask_t resul = M_NULO;
+    uint8_t sum = ac + value;
+    /*Acá lo importante es que para la suma tengo Overflow
+     si al sumar dos números negativos obtengo uno positivo
+    y si sumo dos números positivos obtengo uno negativo.*/
+    if (ac <= 127 && value <= 127) {
+        if (sum >= 128) {
+            resul = M_OVERF;
+        } else if (sum + carry == 128) resul = M_OVERF;
+    } else if (ac >= 128 && value >= 128) {
+                if (sum <= 127) {
+                    resul = M_OVERF;
+                } else if (sum + carry <= 127) resul = M_OVERF;
+    }
+    
+    return resul;
+}
+
 void adc(uint8_t *ac, uint8_t value, uint8_t *sr)
 {  
     uint16_t resul = *ac + value + (*sr & M_CARRY);
     uint8_t carry = (resul & 0x100) >> 8;
     *sr = *sr & 0xFE | carry; 
-    if (*sr == 0) {
+    if ((resul & 0xFF) == 0) {
         *sr |= M_ZERO;
     }
     *sr &= (resul & M_NEG);
     //TODO: falta setear el flag de overflow.
+    *sr |= overflow(*ac,value,carry);
+    
     *ac = resul & 0xFF;
 }
 
 
 int main()
 {
-    printf("%d\n", 0 | M_NEG);
+
+    printf("%d\n", overflow(127,127,0));
+    printf("%d\n", overflow(127,127,1));
+    printf("%d\n", overflow(64,63,0));    
+    printf("%d\n", overflow(64,63,1));
+    printf("%d\n", overflow(63,63,1));    
+    printf("%d\n", overflow(129,157,0));
+    printf("%d\n", overflow(128,128,1));
+
     return 0;
 }
 
