@@ -86,14 +86,26 @@ mask_t overflow(uint8_t ac,uint8_t value, uint8_t carry)
     return resul;
 }
 
+/* En caso de que el valor no sea cero
+   el valor que retorna es cero. Si value
+   es cero retor M_ZERO que es igual a 2
+   este valor sirve como mascara para el registro
+   de estado */
+mask_t zero(uint8_t value)
+{
+    mask_t resul = M_NULO;
+    if ((value & 0xFF) == 0) resul = M_ZERO;
+    return resul;
+}
+
 void adc(uint8_t *ac, uint8_t value, uint8_t *sr)
 {  
     uint16_t resul = *ac + value + (*sr & M_CARRY);
     uint8_t carry = (resul & 0x100) >> 8;
     *sr = *sr & 0xFE | carry; 
-    if ((resul & 0xFF) == 0) {
-        *sr |= M_ZERO;
-    }
+ 
+    (*sr) |= zero(resul);
+ 
     *sr &= (resul & M_NEG);
     //TODO: falta setear el flag de overflow.
     *sr |= overflow(*ac,value,carry);
@@ -101,6 +113,17 @@ void adc(uint8_t *ac, uint8_t value, uint8_t *sr)
     *ac = resul & 0xFF;
 }
 
+
+void cmp(uint8_t ac,uint8_t value,uint8_t *sr)
+{
+    uint8_t resul = ac - value;
+    (*sr) &= 0xFD;
+    (*sr) |= zero(resul);
+    (*sr) &= (M_NEG - 1);
+    (*sr) |= resul & M_NEG;
+    if (resul >= 0) (*sr) |= M_CARRY;
+    else (*sr) &= 0xFE;
+}
 
 int main()
 {
@@ -110,9 +133,11 @@ int main()
     printf("%d\n", overflow(64,63,0));    
     printf("%d\n", overflow(64,63,1));
     printf("%d\n", overflow(63,63,1));    
-    printf("%d\n", overflow(129,157,0));
-    printf("%d\n", overflow(128,128,1));
+    printf("%d\n", overflow(192,255,0));
+    printf("%d\n", overflow(128,255,1));
 
+
+    // 11111100
     return 0;
 }
 
