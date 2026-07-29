@@ -13,7 +13,7 @@ typedef enum {
     OR_NEG = 128,
 } or_mask_t;
 
-
+// Aplicando un & resetea los flag correspondientes.
 typedef enum {
     RESET_NEG = 127,
     RESET_OVERF = 191,
@@ -21,7 +21,7 @@ typedef enum {
     RESET_DEC = 247,
     RESET_INTER = 251,
     RESET_ZERO = 253,
-    RESET_CARRY = 255,
+    RESET_CARRY = 254,
 } resetF_t;
 
 
@@ -161,6 +161,11 @@ or_mask_t sbc_overf(uint8_t sR,uint8_t sA,uint8_t sMC)
     return result;
 }
 
+
+/*FIXME: Puede que convenga separar el reset de
+  flag en un procedimiento. Ademas el reset debe afectar
+  tambien a acd, por lo que asi como lo tengo puede que adc
+  este mal implementado.*/
 void sbc(uint8_t *ac,uint8_t value,uint8_t *sr)
 {
     /* Salvo que este pasando por alto algún capricho de C
@@ -169,13 +174,28 @@ void sbc(uint8_t *ac,uint8_t value,uint8_t *sr)
     if (*ac >= (value + compl)) (*sr) |= OR_CARRY;
     else (*sr) &= 0xFE;
     uint16_t resul = *ac - value - compl;
-    (*sr) &= 0xFD;
+    (*sr) &= RESET_ZERO;
     (*sr) |= zero(resul);
-    (*sr) &= 0x7F;
+    (*sr) &= RESET_NEG;
     (*sr) |= (resul & OR_NEG);
     (*sr) &= RESET_OVERF;
+    uint8_t sResul = resul & OR_NEG;
+    uint8_t sAcu = *ac & OR_NEG;
+    uint8_t sM = (value + compl) & OR_NEG;
+    (*sr) |= sbc_overf(sResul,sAcu,sM);
     
+}
+
+/* fetch_inst lo que hace es cargar en el tercer parametro
+   el contenido de ram en la posicion pc y auamenta pc
+   por lo que para esta instruccion tambien deberia ser válido
+   con la diferencia de que acá se carga el registro acumulador*/
+void lda(uint8_t *ac,uint8_t *sr,uint16_t *pc,uint8_t ram[])
+{
     
+    fetch_inst(ram, pc, ac);
+    (*sr) &= RESET_ZERO;
+    (*sr) |= zero(*ac);
 }
 
 
