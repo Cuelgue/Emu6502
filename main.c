@@ -190,13 +190,42 @@ void sbc(uint8_t *ac,uint8_t value,uint8_t *sr)
    el contenido de ram en la posicion pc y auamenta pc
    por lo que para esta instruccion tambien deberia ser válido
    con la diferencia de que acá se carga el registro acumulador*/
-void lda(uint8_t *ac,uint8_t *sr,uint16_t *pc,uint8_t ram[])
+void load(uint8_t *ac,uint8_t *sr,uint16_t *pc,uint8_t ram[])
 {
-    
+    //Util para la instrucciones LDA,LDX y LDY
     fetch_inst(ram, pc, ac);
     (*sr) &= RESET_ZERO;
     (*sr) |= zero(*ac);
+    (*sr) &= RESET_NEG;
+    (*sr) |= (*ac & OR_NEG);
 }
+
+
+void and(uint8_t *ac,uint8_t *sr,uint8_t value)
+{
+    (*sr) &= RESET_ZERO;
+    (*sr) &= RESET_NEG;
+    *ac &= value;
+    (*sr) |= zero(*ac);
+    (*sr) |= (*ac & OR_NEG);
+}
+
+/* Desplaza a la derecha un bit,
+   el bit desplazado se convierte en carry
+ y de setea el bit de negativo si como resualtado
+ el valor debe interpretarse como tal.*/
+void asl(uint8_t *value,uint8_t *sr)
+{
+    (*sr) &= RESET_NEG;
+    (*sr) &= RESET_CARRY;
+    // Setea como carry el bit que va a ser desplazado.
+    (*sr) |= ((*value & OR_NEG) >> 7);
+    *value = *value << 1;
+    (*sr) |= (*value & OR_NEG);
+}
+
+
+
 
 
 int main()
