@@ -4,7 +4,7 @@
 
 #define CPU6502_H
 typedef enum {
-    OR_NULO = 0, //agregado solo para la funcion Overflow 
+    OR_NULO = 0, //agregado solo para la funcion Overflow
     OR_CARRY = 1,
     OR_ZERO,
     OR_INTER = 4,
@@ -28,16 +28,16 @@ typedef enum {
 
 
 typedef struct {
-    uint16_t pc; 
+    uint16_t pc;
     /* Puede que sea mejor un array pero voy a dejarlo separado con sus nombres */
     uint8_t ac;
     uint8_t x;
     uint8_t y;
-    /* Status register 
+    /* Status register
 
        - : significa que ese bit se ignora.
        Negative | Overflow | - | Break | Decimal (use BCD for arimetic) | Interrump | Zero | Carry */
-    uint8_t sr; 
+    uint8_t sr;
     uint8_t sp;
 } reg_t;
 
@@ -71,8 +71,13 @@ void and(uint8_t *ac,uint8_t *sr,uint8_t value);
 void asl(uint8_t *value,uint8_t *sr);
 
 void bcc(uint16_t dir,int8_t sr,uint16_t *pc);
-#endif
 
+void bcs(uint16_t dir,int8_t sr,uint16_t *pc);
+
+void beq(uint16_t dir, uint8_t sr, uint16_t *pc);
+
+void bit(uint8_t value,uint8_t *sr, uint8_t acc );
+#endif
 #ifdef IMPLEMENTATION
 
 //TODO: Reemplazar uint8_t con iint8_t
@@ -100,7 +105,7 @@ void brk(cpu_t *cpu, uint8_t *ram)
     ram[cpu->reg.sp] = cpu->reg.sr;
     cpu->reg.pc = (ram[0xFFFF] << 8) | ram[0xFFFE];
 
-  
+
 }
 
 
@@ -112,7 +117,7 @@ void brk(cpu_t *cpu, uint8_t *ram)
      al final resolver es lo primero, mejorar es lo siguiente.*/
 or_mask_t overflow(uint8_t ac,uint8_t value, uint8_t carry)
 {
-    
+
     or_mask_t resul = OR_NULO;
     uint8_t sum = ac + value;
     /*Acá lo importante es que para la suma tengo Overflow
@@ -127,7 +132,7 @@ or_mask_t overflow(uint8_t ac,uint8_t value, uint8_t carry)
                     resul = OR_OVERF;
                 } else if (sum + carry <= 127) resul = OR_OVERF;
     }
-    
+
     return resul;
 }
 
@@ -144,17 +149,17 @@ or_mask_t zero(uint8_t value)
 }
 
 void adc(uint8_t *ac, uint8_t value, uint8_t *sr)
-{  
+{
     uint16_t resul = *ac + value + (*sr & OR_CARRY);
     uint8_t carry = (resul & 0x100) >> 8;
-    *sr = *sr & 0xFE | carry; 
- 
+    *sr = *sr & 0xFE | carry;
+
     (*sr) |= zero(resul);
- 
+
     *sr &= (resul & OR_NEG);
     //TODO: falta setear el flag de overflow.
     *sr |= overflow(*ac,value,carry);
-    
+
     *ac = resul & 0xFF;
 }
 
@@ -216,7 +221,7 @@ void sbc(uint8_t *ac,uint8_t value,uint8_t *sr)
     uint8_t sAcu = *ac & OR_NEG;
     uint8_t sM = (value + compl) & OR_NEG;
     (*sr) |= sbc_overf(sResul,sAcu,sM);
-    
+
 }
 
 /* fetch_inst lo que hace es cargar en el tercer parametro
@@ -262,6 +267,30 @@ void asl(uint8_t *value,uint8_t *sr)
 void bcc(uint16_t dir,int8_t sr,uint16_t *pc)
 {
     int8_t carry = sr & OR_CARRY;
+    if (!carry) *pc = dir;
+}
+
+void bcs(uint16_t dir,int8_t sr,uint16_t *pc)
+{
+    int8_t carry = sr & OR_CARRY;
     if (carry) *pc = dir;
+}
+
+void beq(uint16_t dir, uint8_t sr, uint16_t *pc)
+{
+    if (zero(sr)) *pc = dir;
+}
+
+/*Value es el contenido de una direccion de memoria*/
+void bit(uint8_t value,uint8_t *sr, uint8_t acc )
+{
+    uint8_t resul = value & acc;
+    //FIXME: estoy repiendo mucho esto, tengo que mejorarlo.
+    *sr &= RESET_ZERO;
+    *sr |= zero(resul);
+    *sr &= RESET_NEG;
+    *sr |= resul;
+    *sr &= RESET_OVERF;
+    *sr |= resul;
 }
 #endif
