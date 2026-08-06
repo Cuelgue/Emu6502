@@ -77,6 +77,18 @@ void bcs(uint16_t dir,int8_t sr,uint16_t *pc);
 void beq(uint16_t dir, uint8_t sr, uint16_t *pc);
 
 void bit(uint8_t value,uint8_t *sr, uint8_t acc );
+
+void bmi(uint16_t dir, uint8_t sr, uint16_t *pc);
+
+void bne(uint16_t dir, uint8_t sr, uint16_t *pc);
+
+void bpl(uint16_t dir, uint8_t sr, uint16_t *pc);
+
+void bvc(uint16_t dir, uint8_t sr, uint16_t *pc);
+
+void bvs(uint16_t dir, uint8_t sr, uint16_t *pc);
+
+void clear_flag(uint16_t *sr,resetF_t reset);
 #endif
 #ifdef IMPLEMENTATION
 
@@ -293,4 +305,57 @@ void bit(uint8_t value,uint8_t *sr, uint8_t acc )
     *sr &= RESET_OVERF;
     *sr |= resul;
 }
+
+/*bmi,bne,bpl,bvc son esencialmente la misma opearacion
+  dejo un FIXME para centraalizarlo en un opracion que reciva
+  directamente el valor a procesar.*/
+void bmi(uint16_t dir, uint8_t sr, uint16_t *pc)
+{
+    if (sr & OR_NEG == OR_NEG) {
+        *pc = dir;
+    }
+}
+
+
+void bne(uint16_t dir, uint8_t sr, uint16_t *pc)
+{
+    if(!zero(sr)) *pc = dir;
+}
+
+
+void bpl(uint16_t dir, uint8_t sr, uint16_t *pc)
+{
+    if (sr & OR_NEG == OR_NULO) {
+        *pc = dir;
+    }
+}
+
+
+void bvc(uint16_t dir, uint8_t sr, uint16_t *pc)
+{
+    if (sr & OR_OVERF) {
+        *pc = dir;
+    }
+}
+
+void bvs(uint16_t dir, uint8_t sr, uint16_t *pc)
+{
+    if (sr & OR_OVERF == OR_NULO) {
+        *pc = dir;
+    }
+}
+
+/*Aprovechando que ya se tiene disponible resetF_t
+  esta funcion resea el flog que recibe como parametro
+  en reset*/
+void clear_flag(uint16_t *sr,resetF_t reset)
+{    /*inst clc: opcode 0x18. cld opcode 0xDB
+       cli: opcode 0x58. clv: opcode 0xB8
+       clc: reset carry. cld: reset decimal.
+       cli: reset interrump. clv: reset Overflow
+     */
+    *sr = *sr & reset;
+}
+
+
 #endif
