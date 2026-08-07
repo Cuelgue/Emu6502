@@ -19,8 +19,10 @@ typedef enum {
 typedef enum {
     RESET_NOZ = 61, //Reset Negative, Overflow y Zero.
     RESET_NO = 63, //Reset Negative y Overflow.
+    RESET_NC = 124,//Reset Negative y carry.
     RESET_NZ = 125, //Reset Negative y Zero.
     RESET_NEG = 127,
+    RESET_NCZ = 131,
     RESET_OVERF = 191,
     RESET_BREAK = 239,
     RESET_DEC = 247,
@@ -271,18 +273,18 @@ void and(uint8_t *ac,uint8_t *sr,uint8_t value)
 }
 
 
-/* Desplaza a la derecha un bit,
+/* Desplaza a la izquierda un bit,
    el bit desplazado se convierte en carry
    y de setea el bit de negativo si como resualtado
    el valor debe interpretarse como tal.*/
 void asl(uint8_t *value,uint8_t *sr)
 {
-    (*sr) &= RESET_NEG;
-    (*sr) &= RESET_CARRY;
+    clear_flag(sr,RESET_NCZ);
     // Setea como carry el bit que va a ser desplazado.
     (*sr) |= ((*value & OR_NEG) >> 7);
     *value = *value << 1;
     (*sr) |= (*value & OR_NEG);
+    (*sr) |= zero(*value);
 }
 
 
@@ -374,6 +376,67 @@ void eor(uint8_t value, uint8_t *acc, uint8_t *sr)
     *sr = zero(value) | *sr;
     *sr = (value & OR_NEG) | *sr;
 }
+
+/*La funcion realiza la mima operacioan tanto
+ para INC como para INX y INY*/
+void inc(uint8_t *value, uint8_t *sr)
+{
+    clear_flag(sr,RESET_NZ);
+    (*value)++;
+    (*sr) |= (*value & OR_NEG);
+    (*sr) |= zero(*value);
+}
+
+/*Se supone que estoy recibiendo
+ la direccion ya ensamblada.
+la direccion esta constituida
+como el primer byte como la parte
+baja del program counter PC = XX + Primer Byte;
+segundo byte como la parte alta
+PC = Segundo Byte + XX <- (Primer Byte)*/
+void jump(uint16_t dir, uint8_t *pc)
+{
+    *pc = dir;
+}
+
+/*TODO: Corroborar sp*/
+void jsr(uint16_t *pc,uint8_t *sp,uint16_t dir, uint8_t ram[])
+{
+    (*sp)--;
+    ram[*sp] = (*pc & 0xFF00) >> 8;
+    (*sp)--;
+    ram[*sp] = *pc & 0xFF;
+    *pc = dir;
+
+}
+
+/*Desplaza a la derecha a1 bit y setea flag
+ carry como el valor de bit desplazado
+negativo como cero y cero si el valor es cero
+TODO: corroborar el tema de los reset.*/
+void lsr(uint8_t *value, uint8_t *sr)
+{
+    clear_flag(sr,RESET_NCZ);
+    (*sr) |= (*value & OR_CARRY); //Sete el valor del carry.
+    (*value) >>= 1;
+    (*sr) |= zero(*value);
+
+}
+
+//La operacion NOT no hace nada, vamos a dejarla vacia.
+void not()
+{
+}
+
+void ora(uint8_t value, uint8_t *ac, uint8_t *sr)
+{
+    clear_flag(sr,RESET_NC);
+    *ac = *ac ^ value;
+    *sr |= zero(*ac);
+    *sr |= (*ac & OR_NEG);
+
+}
+
 
 
 #endif
