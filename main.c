@@ -11,12 +11,13 @@ int main()
 
     printf("%d\n", overflow(127,127,0));
     printf("%d\n", overflow(127,127,1));
-    printf("%d\n", overflow(64,63,0));    
+    printf("%d\n", overflow(64,63,0));
     printf("%d\n", overflow(64,63,1));
-    printf("%d\n", overflow(63,63,1));    
+    printf("%d\n", overflow(63,63,1));
     printf("%d\n", overflow(192,255,0));
     printf("%d\n", overflow(128,255,1));
-
+    uint8_t a = 0 - 1;
+    printf("%d\n",a);
     uint16_t pc = 0;
     int8_t sr = 25;
     uint16_t dir = 17999;
@@ -40,7 +41,7 @@ int main()
   // Opcode como Key
   uint8_t key;
   // Funcion a cargar/ejecutar según opcode
-  fn_t fun;  
+  fn_t fun;
   }kv_t;
 
   struct nodo_t;

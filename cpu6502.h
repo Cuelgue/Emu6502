@@ -17,6 +17,9 @@ typedef enum {
 
 // Aplicando un & resetea los flag correspondientes.
 typedef enum {
+    RESET_NOZ = 61, //Reset Negative, Overflow y Zero.
+    RESET_NO = 63, //Reset Negative y Overflow.
+    RESET_NZ = 125, //Reset Negative y Zero.
     RESET_NEG = 127,
     RESET_OVERF = 191,
     RESET_BREAK = 239,
@@ -88,7 +91,7 @@ void bvc(uint16_t dir, uint8_t sr, uint16_t *pc);
 
 void bvs(uint16_t dir, uint8_t sr, uint16_t *pc);
 
-void clear_flag(uint16_t *sr,resetF_t reset);
+void clear_flag(uint8_t *sr,resetF_t reset);
 #endif
 #ifdef IMPLEMENTATION
 
@@ -100,6 +103,18 @@ void fetch_inst(uint8_t *ram,uint16_t *pc,uint8_t *inst)
     (*pc)++;
 }
 
+
+/*Aprovechando que ya se tiene disponible resetF_t
+  esta funcion resea el flog que recibe como parametro
+  en reset*/
+void clear_flag(uint8_t *sr,resetF_t reset)
+{    /*inst clc: opcode 0x18. cld opcode 0xDB
+       cli: opcode 0x58. clv: opcode 0xB8
+       clc: reset carry. cld: reset decimal.
+       cli: reset interrump. clv: reset Overflow
+     */
+    *sr = *sr & reset;
+}
 
 
 void brk(cpu_t *cpu, uint8_t *ram)
@@ -164,7 +179,8 @@ void adc(uint8_t *ac, uint8_t value, uint8_t *sr)
 {
     uint16_t resul = *ac + value + (*sr & OR_CARRY);
     uint8_t carry = (resul & 0x100) >> 8;
-    *sr = *sr & 0xFE | carry;
+    clear_flag(sr,RESET_CARRY);
+    *sr = *sr | carry;
 
     (*sr) |= zero(resul);
 
@@ -179,12 +195,11 @@ void adc(uint8_t *ac, uint8_t value, uint8_t *sr)
 void cmp(uint8_t ac,uint8_t value,uint8_t *sr)
 {
     uint8_t resul = ac - value;
-    (*sr) &= 0xFD;
+    clear_flag(sr,RESET_NZ);
     (*sr) |= zero(resul);
-    (*sr) &= (OR_NEG - 1);
     (*sr) |= resul & OR_NEG;
     if (resul >= 0) (*sr) |= OR_CARRY;
-    else (*sr) &= 0xFE;
+    else clear_flag(sr,RESET_CARRY);
 }
 
 
@@ -212,8 +227,7 @@ or_mask_t sbc_overf(uint8_t sR,uint8_t sA,uint8_t sMC)
 }
 
 
-/*FIXME: Puede que convenga separar el reset de
-  flag en un procedimiento. Ademas el reset debe afectar
+/*FIXME:Ademas el reset debe afectar
   tambien a acd, por lo que asi como lo tengo puede que adc
   este mal implementado.*/
 void sbc(uint8_t *ac,uint8_t value,uint8_t *sr)
@@ -224,11 +238,9 @@ void sbc(uint8_t *ac,uint8_t value,uint8_t *sr)
     if (*ac >= (value + compl)) (*sr) |= OR_CARRY;
     else (*sr) &= 0xFE;
     uint16_t resul = *ac - value - compl;
-    (*sr) &= RESET_ZERO;
+    clear_flag(sr,RESET_NOZ);
     (*sr) |= zero(resul);
-    (*sr) &= RESET_NEG;
     (*sr) |= (resul & OR_NEG);
-    (*sr) &= RESET_OVERF;
     uint8_t sResul = resul & OR_NEG;
     uint8_t sAcu = *ac & OR_NEG;
     uint8_t sM = (value + compl) & OR_NEG;
@@ -244,17 +256,15 @@ void load(uint8_t *ac,uint8_t *sr,uint16_t *pc,uint8_t ram[])
 {
     //Util para la instrucciones LDA,LDX y LDY
     fetch_inst(ram, pc, ac);
-    (*sr) &= RESET_ZERO;
+    clear_flag(sr,RESET_NZ);
     (*sr) |= zero(*ac);
-    (*sr) &= RESET_NEG;
     (*sr) |= (*ac & OR_NEG);
 }
 
 
 void and(uint8_t *ac,uint8_t *sr,uint8_t value)
 {
-    (*sr) &= RESET_ZERO;
-    (*sr) &= RESET_NEG;
+    clear_flag(sr,RESET_NZ);
     *ac &= value;
     (*sr) |= zero(*ac);
     (*sr) |= (*ac & OR_NEG);
@@ -263,8 +273,8 @@ void and(uint8_t *ac,uint8_t *sr,uint8_t value)
 
 /* Desplaza a la derecha un bit,
    el bit desplazado se convierte en carry
- y de setea el bit de negativo si como resualtado
- el valor debe interpretarse como tal.*/
+   y de setea el bit de negativo si como resualtado
+   el valor debe interpretarse como tal.*/
 void asl(uint8_t *value,uint8_t *sr)
 {
     (*sr) &= RESET_NEG;
@@ -298,11 +308,9 @@ void bit(uint8_t value,uint8_t *sr, uint8_t acc )
 {
     uint8_t resul = value & acc;
     //FIXME: estoy repiendo mucho esto, tengo que mejorarlo.
-    *sr &= RESET_ZERO;
+    clear_flag(sr,RESET_NOZ);
     *sr |= zero(resul);
-    *sr &= RESET_NEG;
     *sr |= resul;
-    *sr &= RESET_OVERF;
     *sr |= resul;
 }
 
@@ -345,16 +353,26 @@ void bvs(uint16_t dir, uint8_t sr, uint16_t *pc)
     }
 }
 
-/*Aprovechando que ya se tiene disponible resetF_t
-  esta funcion resea el flog que recibe como parametro
-  en reset*/
-void clear_flag(uint16_t *sr,resetF_t reset)
-{    /*inst clc: opcode 0x18. cld opcode 0xDB
-       cli: opcode 0x58. clv: opcode 0xB8
-       clc: reset carry. cld: reset decimal.
-       cli: reset interrump. clv: reset Overflow
-     */
-    *sr = *sr & reset;
+
+
+/* dec - dex - dey. Son la misma operacion
+   con la diferencia que dec es un valor en
+   memoria y dex e y son los registros*/
+void dec(uint8_t *value, uint8_t *sr)
+{
+    clear_flag(sr,RESET_NO);
+    (*value) -= 1;
+    *sr = zero(*value) | *sr;
+    *sr = (*value & OR_NEG) | *sr;
+
+}
+
+void eor(uint8_t value, uint8_t *acc, uint8_t *sr)
+{
+    clear_flag(sr,RESET_NO);
+    *acc = *acc ^ value;
+    *sr = zero(value) | *sr;
+    *sr = (value & OR_NEG) | *sr;
 }
 
 
