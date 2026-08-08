@@ -89,13 +89,38 @@ void bne(uint16_t dir, uint8_t sr, uint16_t *pc);
 
 void bpl(uint16_t dir, uint8_t sr, uint16_t *pc);
 
-void bvc(uint16_t dir, uint8_t sr, uint16_t *pc);
+avoid bvc(uint16_t dir, uint8_t sr, uint16_t *pc);
 
 void bvs(uint16_t dir, uint8_t sr, uint16_t *pc);
 
 void clear_flag(uint8_t *sr,resetF_t reset);
+
+uint16_t normalizar_sp(uint8_t sp);
+
+void dec(uint8_t *value, uint8_t *sr);
+
+void eor(uint8_t value, uint8_t *acc, uint8_t *sr);
+
+void inc(uint8_t *value, uint8_t *sr);
+
+void jump(uint16_t dir, uint8_t *pc);
+
+void jsr(uint16_t *pc,uint8_t *sp,uint16_t dir, uint8_t ram[]);
+
+void lsr(uint8_t *value, uint8_t *sr);
+
+void ora(uint8_t value, uint8_t *ac, uint8_t *sr);
+
+void push_reg(uint8_t value, uint8_t ram[], uint8_t *sp);
+
+void pull_reg(uint8_t *value, uint8_t ram[], uint8_t *sp);
 #endif
 #ifdef IMPLEMENTATION
+
+
+uint16_t normalizar_sp(uint8_t sp)
+{
+    return 0x0100 | sp;
 
 //TODO: Reemplazar uint8_t con iint8_t
 
@@ -403,7 +428,7 @@ void jump(uint16_t dir, uint8_t *pc)
 void jsr(uint16_t *pc,uint8_t *sp,uint16_t dir, uint8_t ram[])
 {
     (*sp)--;
-    ram[*sp] = (*pc & 0xFF00) >> 8;
+    ram[normalizar_sp(*sp)] = (*pc & 0xFF00) >> 8;
     (*sp)--;
     ram[*sp] = *pc & 0xFF;
     *pc = dir;
@@ -423,7 +448,7 @@ void lsr(uint8_t *value, uint8_t *sr)
 
 }
 
-//La operacion NOT no hace nada, vamos a dejarla vacia.
+/*La operacion NOT no hace nada, vamos a dejarla vacia.*/
 void not()
 {
 }
@@ -435,6 +460,25 @@ void ora(uint8_t value, uint8_t *ac, uint8_t *sr)
     *sr |= zero(*ac);
     *sr |= (*ac & OR_NEG);
 
+}
+
+/* PHA - PHP.
+ al final lo que hace es pusher un registro al stack
+y decrementar el stack pointer.*/
+void push_reg(uint8_t value, uint8_t ram[], uint8_t *sp)
+{
+    ram[normalizar_sp(*sp)] = value;
+    (*sp)--;
+}
+
+
+/*PLA - PLP
+ incrementa sp y inicializa value con el contenido
+de ram en la posicion sp normalizada.*/
+void pull_reg(uint8_t *value, uint8_t ram[], uint8_t *sp)
+{
+    (*sp)++;
+    *value = ram[normalizar_sp(*sp)];
 }
 
 
