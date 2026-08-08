@@ -114,6 +114,22 @@ void ora(uint8_t value, uint8_t *ac, uint8_t *sr);
 void push_reg(uint8_t value, uint8_t ram[], uint8_t *sp);
 
 void pull_reg(uint8_t *value, uint8_t ram[], uint8_t *sp);
+
+void rol(uint8_t *value, uint8_t *sr);
+
+void ror(uint8_t *value, uint8_t *sr);
+
+void rti(uint16_t *pc, uint8_t *sr, , uint8_t *sp, uint8_t ram[]);
+
+void rts(uint16_t *pc, uint8_t *sp, uint8_t ram[]);
+
+ void set_flag(uint8_t *sr, or_mask_t flag);
+
+void store_reg_mem(uint8_t reg, uint8_t ram[], uint16_t *pc);
+
+void trr(uint8_t ori, uint8_t *dst, uint8_t *sr);
+
+void txs(uint8_t x, uint8_t *sp);
 #endif
 #ifdef IMPLEMENTATION
 
@@ -482,5 +498,80 @@ void pull_reg(uint8_t *value, uint8_t ram[], uint8_t *sp)
 }
 
 
+void rol(uint8_t *value, uint8_t *sr)
+{
+    clear_flag(sr,RESET_NCZ);
+    (*sr)  |= (*value >> 7);
+    (*value) <<= 1;
+    (*value) |= (*sr & OR_CARRY);
+    (*sr) |= zero(*value);
+    (*sr) |= (*value & OR_NEG);
+}
 
+
+void ror(uint8_t *value, uint8_t *sr)
+{
+    clear_flag(sr,RESET_NCZ);
+    (*sr)  |= ((*value >> 1) & OR_CARRY);
+    (*value) >>= 1;
+    (*value) |= ((*sr & OR_CARRY) << 7);
+    (*sr) |= zero(*value);
+    (*sr) |= (*value & OR_NEG);
+}
+
+
+void rti(uint16_t *pc, uint8_t *sr, , uint8_t *sp, uint8_t ram[])
+{
+    *sr = ram[normalizar_sp(*sp)];
+    (*sp)++;
+    *pc = 0xFF & ram[normalizar_sp(*sp)];
+    (*sp)++;
+    *pc = 0xFF00 & ram[normalizar_sp(*sp)];
+
+}
+
+void rts(uint16_t *pc, uint8_t *sp, uint8_t ram[])
+{
+    *pc = 0xFF & ram[normalizar_sp(*sp)];
+    (*sp)++;
+    *pc = 0xFF00 & ram[normalizar_sp(*sp)];
+}
+
+/*Setea flag: SEC - SED - SEI
+  A tener en cuenta, la aespeacificacion
+  dice que el reset del flag de decimal no
+  tiene un comportamiendo definido*/
+ void set_flag(uint8_t *sr, or_mask_t flag)
+ {
+     (*sr) |= flag;
+}
+
+/*Guada el valor de un registro en una posicion
+de memoria. Esta funcion deberia ser vaálida
+para las instrcuccioanes STA - STX y STY*/
+void store_reg_mem(uint8_t reg, uint8_t ram[], uint16_t *pc)
+{
+    ram[*pc] = reg;
+    (*pca)++
+}
+
+/*Transfiere el valor de un registro
+a otro registro y setea el flag
+de negativo y carry.
+Esta funcion deberia ser útil para
+las instrcucciones: TAX - TAY - TSX - TXA - TYA*/
+void trr(uint8_t ori, uint8_t *dst, uint8_t *sr)
+{
+    clear_flag(sr,RESET_NZ);
+    *dst = ori;
+    (*sr) |= zero(*dst);
+    (*sr) |= (*dst & OR_NEG);
+}
+
+/*TRansfiere el registro x ala stack pointer
+sin alterar ningun flag*/
+void txs(uint8_t x, uint8_t *sp)
+{
+    *sp = x;
+}
 #endif
